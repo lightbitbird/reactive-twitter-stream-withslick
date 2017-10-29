@@ -2,6 +2,7 @@ logs
 project/project
 project/target
 target
+src/main/resources/application.conf
 tmp
 .history
 dist
