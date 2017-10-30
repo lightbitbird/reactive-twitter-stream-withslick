@@ -19,10 +19,15 @@ https://user-images.githubusercontent.com/14951865/32171595-01f6d1e6-bdbc-11e7-8
 Multiple main classes detected, select one to run:
 
  [1] com.twitter.TwitterStreamer
+
      Akka actor gets tweets from Twitter Streaming API and chunk them into words, register them in DB.
+
  [2] com.resident.MessageHandler
+
      Akka actor sends SQS Message queues using Akka Actor daemon as a background process.
+
  [3] com.restapi.TwitterWordsApplication
+
      Registerd words are pointed at by a prefecture on Google Map.
 
 
