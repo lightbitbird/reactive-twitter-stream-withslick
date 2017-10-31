@@ -2,6 +2,9 @@
 =========================
 
 #
+Before running this app, you need your access token for a twitter streaming and SQS access key. 
+
+#
 1. Akka actor gets tweets from Twitter Streaming API and chunk them into words, register them in DB.
    A prefecture number is enable to change on TwitterBatchActor.
 
@@ -10,7 +13,7 @@ https://user-images.githubusercontent.com/14951865/32171589-ff5739ee-bdbb-11e7-9
 #
 2. Akka actor sends SQS Message queues using Akka Actor daemon as a background process.
 SQS ids are managed by other actor on database, the actor collects words each by prefecture in the score table with Akka Streams.
-These process are just for testing SQS, Akka streams, actor daemon.
+These process are not efficient, some queries and the score table is not necessary, just for testing SQS, Slick, Akka streams, actor daemon.
 
 https://user-images.githubusercontent.com/14951865/32171592-002a091e-bdbc-11e7-8115-e9397ae110a4.JPG
 
