@@ -25,7 +25,7 @@ https://github.com/lightbitbird/twitter-words-map
 **Usage**  
 
 Here Multiple main classes, select them to run.  
-Execute *sbt run* in order to run the Main application.
+Execute `sbt run` in order to run the Main application.
 
  [1] com.twitter.TwitterStreamer
 
