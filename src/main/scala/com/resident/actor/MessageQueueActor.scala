@@ -54,27 +54,27 @@ object MessageQueueActor {
   }
 
   //SQSが既にSCOREに反映されているかフィルタリング
-  def availableDelFlow = Flow[Future[Seq[Message]]].mapAsync(2)(ftr =>
+  private def availableDelFlow = Flow[Future[Seq[Message]]].mapAsync(2)(ftr =>
     ftr.flatMap(msgs => Future.successful(msgs.foldLeft(Future(Seq.empty[Message]))((b, a) => {
       getMessages(a, b)
     })))
   )
 
-  def filterDelFlow = Flow[Message].filter(msg => {
+  private def filterDelFlow = Flow[Message].filter(msg => {
     val list = FileIO.readList("src/main/scala/com/sqs/store/messageIds.txt")
     list.nonEmpty && list.contains(msg.getMessageId)
   })
 
-  def flowFinalize = Flow[Future[Seq[Message]]].mapAsync(2)(ftr =>
+  private def flowFinalize = Flow[Future[Seq[Message]]].mapAsync(2)(ftr =>
     ftr.flatMap(msgs => Future.successful(msgs.map(m => {
       val result = SQSModule.deleteMessage(m)
       result
     })))
   )
 
-  def innerSink = Sink.foreach[Message](msg => SQSModule.deleteMessage(msg))
+  private def innerSink = Sink.foreach[Message](msg => SQSModule.deleteMessage(msg))
 
-  def deleteMsgGraph = RunnableGraph.fromGraph(GraphDSL.create() { implicit b =>
+  private def deleteMsgGraph = RunnableGraph.fromGraph(GraphDSL.create() { implicit b =>
     import GraphDSL.Implicits._
 
     val source = {
@@ -93,7 +93,7 @@ object MessageQueueActor {
     ClosedShape
   })
 
-  def getMessage(messageId: String): Future[Boolean] = {
+  private def getMessage(messageId: String): Future[Boolean] = {
     val scoreTable = TableQuery[Scores]
     val existSqsIds: Future[Seq[Score]] = scoreDal.findByFilter(scoreTable.filter(_.sqsId === messageId))
     val exists: Future[Boolean] = for {
@@ -102,10 +102,9 @@ object MessageQueueActor {
     exists
   }
 
-  def getMessages(message: Message, messages: Future[Seq[Message]]): Future[Seq[Message]] = {
+  private def getMessages(message: Message, messages: Future[Seq[Message]]): Future[Seq[Message]] = {
     val scoreTable = TableQuery[Scores]
     val existSqsIds: Future[Seq[Score]] = scoreDal.findByFilter(scoreTable.filter(_.sqsId === message.getMessageId))
-    println("getMessages : messageId === " + message.getMessageId)
     val list: Future[Seq[Message]] = for {
       msgs <- messages //Future -> Seq[Message]
       res <- existSqsIds if (res.size > 0)
@@ -131,15 +130,14 @@ object MessageQueueActor {
     ClosedShape
   })
 
-  def availableFlow = Flow[Message].filter(msg => {
-    println(messageList.toString())
+  private def availableFlow = Flow[Message].filter(msg => {
     messageList.isEmpty || !messageList.contains(msg.getMessageId)
   })
 
   val dictionaryTable = TableQuery[Dictionaries]
   val scoreTable = TableQuery[Scores]
 
-  def scoring = Flow[Message].map { msg =>
+  private def scoring = Flow[Message].map { msg =>
     val term: List[String] = msg.getBody.split(",").toList
 
     println("term.size = " + term.size)
@@ -161,7 +159,7 @@ object MessageQueueActor {
     }
   }
 
-  def addScore(msg: Message, word: Dictionary, end: Long, size: Long) = {
+  private def addScore(msg: Message, word: Dictionary, end: Long, size: Long) = {
     val dic = dictionaryTable.filter(d => (d.name === word.name) && d.placeId === word.placeId
       && d.country_code === word.country_code).sortBy(_.id)
     val res = dictionaryDal.select(dic)
@@ -179,7 +177,7 @@ object MessageQueueActor {
     }
   }
 
-  def __addScore(dictionaries: Seq[Dictionary], dictionaryId: Long, msg: Message, end: Long) = {
+  private def __addScore(dictionaries: Seq[Dictionary], dictionaryId: Long, msg: Message, end: Long) = {
     val dictionary = dictionaries(0)
     val q = for {
       s <- scoreTable if (s.dictionaryId === dictionary.id)
@@ -221,7 +219,7 @@ object MessageQueueActor {
     }
   }
 
-  def restoreMessageIds(end: Long, dictionaryId: Long, message: Message): Unit = {
+  private def restoreMessageIds(end: Long, dictionaryId: Long, message: Message): Unit = {
     if (end == dictionaryId) {
       messageList += message.getMessageId
       FileIO.write("src/main/scala/com/sqs/store/messageIds.txt", messageList.toList)

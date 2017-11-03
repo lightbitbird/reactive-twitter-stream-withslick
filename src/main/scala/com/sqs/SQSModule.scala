@@ -77,17 +77,6 @@ object SQSModule extends BaseSQS {
     // Long pollの設定
     request.setWaitTimeSeconds(20)
     
-    /**
-      * // using MessageBach
-      * val batchRequest = new SendMessageBatchRequest(myQueueUrl)
-      *batchRequest.setQueueUrl(myQueueUrl)
-      * val batchMessages: ListBuffer[SendMessageBatchRequestEntry] = new ListBuffer[SendMessageBatchRequestEntry]
-      * for (i <- 0 to 9) {
-      * batchMessages += new SendMessageBatchRequestEntry(Integer.toString(i),new Date().toString())
-      * }
-      *batchRequest.setEntries(batchMessages)
-      *sqs.sendMessageBatch(batchRequest)
-      **/
     sqs.receiveMessage(request).getMessages()
   }
   
@@ -98,7 +87,6 @@ object SQSModuleAsync extends BaseSQSAsync {
   private def credentials = new BasicAWSCredentials(config.getString("sqs.accessKey"), config.getString("sqs.secretKey"))
   
   override def sqsClient: AmazonSQSAsyncClient = {
-    //    ProfileCredentialsProvider
     new AmazonSQSAsyncClient(credentials)
   }
   
@@ -124,17 +112,6 @@ object SQSModuleAsync extends BaseSQSAsync {
     // Long pollの設定
     request.setWaitTimeSeconds(20)
     
-    /**
-      * // using MessageBach
-      * val batchRequest = new SendMessageBatchRequest(myQueueUrl)
-      *batchRequest.setQueueUrl(myQueueUrl)
-      * val batchMessages: ListBuffer[SendMessageBatchRequestEntry] = new ListBuffer[SendMessageBatchRequestEntry]
-      * for (i <- 0 to 9) {
-      * batchMessages += new SendMessageBatchRequestEntry(Integer.toString(i),new Date().toString())
-      * }
-      *batchRequest.setEntries(batchMessages)
-      *sqs.sendMessageBatch(batchRequest)
-      **/
     sqs.receiveMessage(request).getMessages()
   }
   
