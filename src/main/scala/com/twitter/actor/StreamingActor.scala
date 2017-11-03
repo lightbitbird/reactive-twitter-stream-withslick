@@ -21,6 +21,7 @@ import com.typesafe.config.ConfigFactory
 import net.reduls.igo.Tagger
 import org.json4s._
 import org.json4s.native.JsonMethods._
+import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConversions._
 import scala.concurrent.Future
@@ -34,16 +35,18 @@ class StreamingActor extends Actor {
     case startId: Int => stream(Option(startId))
 
     case Terminated(self) =>
-      println("Terminated!")
+      log.info("Terminated!")
       context.stop(self)
   }
 
 }
 
 object StreamingActor {
-  val modules = new ConfigurationModuleImpl with ActorModuleImpl with PersistenceModuleImpl
-  val conf = modules.config
-  val locationsConf = ConfigFactory.load(this.getClass().getClassLoader(), "locations.conf")
+  private val log = LoggerFactory.getLogger(this.getClass.getSimpleName)
+
+  private val modules = new ConfigurationModuleImpl with ActorModuleImpl with PersistenceModuleImpl
+  private val conf = modules.config
+  private val locationsConf = ConfigFactory.load(this.getClass().getClassLoader(), "locations.conf")
 
   //Get your credentials from https://apps.twitter.com and replace the values below
   private val consumerKey = conf.getString("twitter.consumerKey")
@@ -79,8 +82,8 @@ object StreamingActor {
     }.toList
   }
 
-  val tagger = new Tagger("lib/ipadic")
-  val enableName = List("名詞", "動名詞")
+  private val tagger = new Tagger("lib/ipadic")
+  private val enableName = List("名詞", "動名詞")
   private var increment = 0
 
   def stream(startId: Option[Int]) = {
@@ -91,7 +94,7 @@ object StreamingActor {
     }
     increment += 1
 
-    println("prefId ========> " + (initialId + increment - 1))
+    log.info("prefId ========> " + (initialId + increment - 1))
     val targetPref = prefs(initialId + increment - 2)
     val locations = targetPref.longitude(0) + "," + targetPref.latitude(0) + "," + targetPref.longitude(1) + "," + targetPref.latitude(1)
     val body = "locations=" + locations
@@ -127,13 +130,13 @@ object StreamingActor {
 
         Http().singleRequest(httpRequest).onComplete {
           case Success(res) if res.status.isSuccess() =>
-            println("Success! : " + res.status)
+            log.info("Success! : " + res.status)
             res.entity.dataBytes.via(chunkBuffer).via(flow).via(flow_serialize).runWith(Sink.ignore)
           case Success(res) =>
-            println("http BAD status status: " + res.status + " entity: " + res.entity)
-          case Failure(res) => println(res.getMessage)
+            log.error("http BAD status status: " + res.status + " entity: " + res.entity)
+          case Failure(res) => log.error(res.getMessage)
         }
-      case Failure(failure) => println(failure.getMessage)
+      case Failure(failure) => log.error(failure.getMessage)
     }
 
     import org.json4s.JsonDSL._
@@ -154,7 +157,7 @@ object StreamingActor {
               modules.dictionaryDal.insert(Dictionary(0L, Option(wd.word), Option(wd.wordType), tw.lang,
                 Option(countries.head.country_code), Option(countries.head.country), Option(targetPref.id), Option(targetPref.text), Option(""), Option(timestamp), Option(timestamp)))
             }
-            case None => println("None.")
+            case None => log.info("None.")
           }
         }
         words
@@ -162,7 +165,7 @@ object StreamingActor {
 
       calc(tw).onComplete {
         case Success(words) => insertWords(tw, words)
-        case Failure(t) => println(t.getMessage)
+        case Failure(t) => log.error(t.getMessage)
       }
     }
 
@@ -173,7 +176,7 @@ object StreamingActor {
       val sentences = Word.splitBySymbol(parsedList.filter(_.subType != "代名詞"))
       Future.successful(sentences.filter(word => word match {
         case Some(w) if (enableName.contains(w.wordType) && w.subType != "非自立") =>
-          println(w.wordType + ": " + w.word)
+          log.info(w.wordType + ": " + w.word)
           true
         case _ => false
       }))

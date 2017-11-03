@@ -9,6 +9,7 @@ import com.amazonaws.services.sqs.model.SendMessageResult
 import com.modules.{ActorModuleImpl, ConfigurationModuleImpl, PersistenceModuleImpl}
 import com.sqs.SQSModule
 import com.twitter.entities.{Dictionaries, Dictionary}
+import org.slf4j.LoggerFactory
 import slick.driver.PostgresDriver.api._
 import slick.lifted.TableQuery
 
@@ -27,11 +28,13 @@ class SQSMessageActor extends Actor {
 }
 
 object SQSMessageActor {
-  val dictionaryDal = (new ConfigurationModuleImpl with ActorModuleImpl with PersistenceModuleImpl).dictionaryDal
+  private val log = LoggerFactory.getLogger(this.getClass.getSimpleName)
 
-  implicit val system = ActorSystem("SQSActor")
-  implicit val materializer = ActorMaterializer()
-  implicit val ec = system.dispatcher
+  private val dictionaryDal = (new ConfigurationModuleImpl with ActorModuleImpl with PersistenceModuleImpl).dictionaryDal
+
+  private implicit val system = ActorSystem("SQSActor")
+  private implicit val materializer = ActorMaterializer()
+  private implicit val ec = system.dispatcher
 
   def props = Props[SQSMessageActor]
 
@@ -46,21 +49,20 @@ object SQSMessageActor {
             val headId = r.head.id
             val tailId = r.last.id
             val msgResult: SendMessageResult = SQSModule.sendMessage(headId + "," + tailId)
-            println("SEND Message: messageID = " + msgResult.getMessageId)
+            log.info("SEND Message: messageID = " + msgResult.getMessageId)
             // add SQS messageId to the each data
             r.foreach { x =>
               dictionaries += Dictionary(x.id, x.name, x.text, x.lang, x.country_code, x.country, x.placeId, x.place, Option(msgResult.getMessageId),
                 x.created, Option(new Timestamp(new Date().getTime())))
             }
-            println(dictionaries.toString())
 
             dictionaryDal.update(dictionaries)
           }
         }
-        case Failure(f) => println(f.getMessage)
+        case Failure(f) => log.error(f.getMessage)
       }
     } catch {
-      case e: Exception => println("Error occured: " + e.getMessage)
+      case e: Exception => log.error("Error occured: " + e.getMessage)
     }
   }
 }

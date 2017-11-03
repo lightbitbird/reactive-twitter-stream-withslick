@@ -17,7 +17,7 @@ object TwitterWordsApplication extends App with WordsServiceImpl with Directives
   private val port = 8080
   private val logger = Logging(system, getClass)
 
-  private val routes = cors()({
+  val routes = cors()({
     pathSingleSlash {
       get {
         val ret = extractTotalWords
@@ -56,7 +56,7 @@ object TwitterWordsApplication extends App with WordsServiceImpl with Directives
           entity(as[Word]) { word =>
             val ret = updateWord(word)
             onSuccess(ret) {
-              case Right(w) => println(w); complete(ToResponseMarshallable(word))
+              case Right(w) => complete(ToResponseMarshallable(word))
               case Left(s) => failWith(new Exception(s))
             }
           }
@@ -65,10 +65,9 @@ object TwitterWordsApplication extends App with WordsServiceImpl with Directives
         post {
           val ret = deleteWord(id)
           onSuccess(ret) {
-            case Right(w) => println(w); complete(ToResponseMarshallable(Word(0L, "", 0L, "", "", 0L)))
+            case Right(w) => complete(ToResponseMarshallable(Word(0L, "", 0L, "", "", 0L)))
             case Left(s) => failWith(new Exception(s))
           }
-//          complete(ToResponseMarshallable(Word(0L, "", 0L, "", "", 0L)))
         }
       }
     }

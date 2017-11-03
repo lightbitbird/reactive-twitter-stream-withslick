@@ -11,6 +11,7 @@ import com.modules.{ActorModuleImpl, ConfigurationModuleImpl, PersistenceModuleI
 import com.sqs.SQSModule
 import com.twitter.entities.{Dictionaries, Dictionary, Score, Scores}
 import com.util.FileIO
+import org.slf4j.LoggerFactory
 import slick.driver.PostgresDriver.api._
 import slick.lifted.TableQuery
 
@@ -32,12 +33,14 @@ class MessageQueueActor extends Actor {
 }
 
 object MessageQueueActor {
-  val modules = new ConfigurationModuleImpl with ActorModuleImpl with PersistenceModuleImpl
-  val dictionaryDal = modules.dictionaryDal
-  val scoreDal = modules.scoreDal
-  implicit val system = ActorSystem("QueueActor")
-  implicit val materializer = ActorMaterializer()
-  implicit val ec = system.dispatcher
+  private val log = LoggerFactory.getLogger(this.getClass.getSimpleName)
+
+  private val modules = new ConfigurationModuleImpl with ActorModuleImpl with PersistenceModuleImpl
+  private val dictionaryDal = modules.dictionaryDal
+  private val scoreDal = modules.scoreDal
+  private implicit val system = ActorSystem("QueueActor")
+  private implicit val materializer = ActorMaterializer()
+  private implicit val ec = system.dispatcher
   private val messageList: ListBuffer[String] = ListBuffer()
 
   modules.scoreDal.createTable()
@@ -140,11 +143,11 @@ object MessageQueueActor {
   private def scoring = Flow[Message].map { msg =>
     val term: List[String] = msg.getBody.split(",").toList
 
-    println("term.size = " + term.size)
+    log.info("term.size = " + term.size)
     if (term.size > 1) {
       val start = term.head.toLong
       val end = term.last.toLong
-      println("start = " + start + "  ------- end = " + end)
+      log.info("start = " + start + "  ------- end = " + end)
 
       //SQSから対象のIDに入るレコードを取得
       val q = (for {
@@ -171,9 +174,9 @@ object MessageQueueActor {
           // increment a score by id
           __addScore(d, word.id, msg, end)
         } else {
-          println("Fail to get a dictionary")
+          log.info("Fail to get a dictionary")
         }
-      case Failure(fail) => println(fail.getMessage)
+      case Failure(fail) => log.error(fail.getMessage)
     }
   }
 
@@ -189,21 +192,21 @@ object MessageQueueActor {
           val res = update(s, dictionary)
           res.onComplete {
             case Success(s) => restoreMessageIds(end, dictionaryId, msg)
-            case Failure(f) => println(f.getMessage)
+            case Failure(f) => log.error(f.getMessage)
           }
         } else {
           val res: Future[Long] = insert(dictionary)
           res.onComplete {
             case Success(s) => restoreMessageIds(end, dictionaryId, msg)
-            case Failure(f) => println(f.getMessage)
+            case Failure(f) => log.error(f.getMessage)
           }
         }
       }
-      case Failure(f) => println("Fail to get a score")
+      case Failure(f) => log.error("Fail to get a score")
     }
 
     def update(score: Seq[Score], dictionary: Dictionary) = {
-      println("UPDATE : " + score.toString)
+      log.info("UPDATE : " + score.toString)
       val count = score.head.count match {
         case Some(c) => c + 1
         case None => 1
@@ -213,7 +216,7 @@ object MessageQueueActor {
     }
 
     def insert(dictionary: Dictionary) = {
-      println("INSERT : " + dictionary.name)
+      log.info("INSERT : " + dictionary.name)
       val timestamp = new Timestamp(new Date().getTime())
       scoreDal.insert(Score(0L, Option(dictionary.id), Option(1), dictionary.sqsId, Option(timestamp), Option(timestamp)))
     }

@@ -41,9 +41,9 @@ trait WordsService {
 }
 
 trait WordsServiceImpl extends WordsService {
-  implicit val system = ActorSystem("system")
-  implicit val materializer = ActorMaterializer()
-  implicit val ec = system.dispatcher
+  protected implicit val system = ActorSystem("system")
+  protected implicit val materializer = ActorMaterializer()
+  protected implicit val ec = system.dispatcher
 
   override def extractTotalWords: Future[Either[String, List[Marker]]] = {
     val w = (dictionaryTable join scoreTable on ((d, s) => d.id === s.dictionaryId)).sortBy(_._1.placeId)
