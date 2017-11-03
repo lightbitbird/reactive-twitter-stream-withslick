@@ -17,7 +17,7 @@ object TwitterWordsApplication extends App with WordsServiceImpl with Directives
   private val port = 8080
   private val logger = Logging(system, getClass)
 
-  val routes = cors()({
+  private val routes = cors()({
     pathSingleSlash {
       get {
         val ret = extractTotalWords

@@ -116,7 +116,7 @@ object MessageQueueActor {
   }
 
   //calculate statistics by each word
-  def calcGraph = RunnableGraph.fromGraph(GraphDSL.create() { implicit b =>
+  private def calcGraph = RunnableGraph.fromGraph(GraphDSL.create() { implicit b =>
     import GraphDSL.Implicits._
 
     val source = {
@@ -137,8 +137,8 @@ object MessageQueueActor {
     messageList.isEmpty || !messageList.contains(msg.getMessageId)
   })
 
-  val dictionaryTable = TableQuery[Dictionaries]
-  val scoreTable = TableQuery[Scores]
+  private val dictionaryTable = TableQuery[Dictionaries]
+  private val scoreTable = TableQuery[Scores]
 
   private def scoring = Flow[Message].map { msg =>
     val term: List[String] = msg.getBody.split(",").toList
