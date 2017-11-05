@@ -2,8 +2,8 @@ package com.modules
 
 import com.persistence.dal.{BaseDal, BaseDalImpl}
 import com.twitter.entities.{Dictionaries, Dictionary, Score, Scores}
-import slick.backend.DatabaseConfig
-import slick.driver.JdbcProfile
+import slick.basic.DatabaseConfig
+import slick.jdbc.JdbcProfile
 import slick.lifted.TableQuery
 
 /**
@@ -30,7 +30,7 @@ trait PersistenceModuleImpl extends PersistenceModule with DbModule {
   //    private val dbConfig: DatabaseConfig[JdbcProfile] = DatabaseConfig.forConfig("h2db")
   //    private val dbConfig: DatabaseConfig[JdbcProfile] = DatabaseConfig.forConfig("h2test")
 
-  override implicit val profile: JdbcProfile = dbConfig.driver
+  override implicit val profile: JdbcProfile = dbConfig.profile
   override implicit val db: JdbcProfile#Backend#Database = dbConfig.db
 
   override val dictionaryDal = new BaseDalImpl[Dictionaries, Dictionary](TableQuery[Dictionaries]) {}

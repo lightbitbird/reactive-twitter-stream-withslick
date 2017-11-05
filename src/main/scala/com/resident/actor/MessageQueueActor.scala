@@ -12,10 +12,10 @@ import com.sqs.SQSModule
 import com.twitter.entities.{Dictionaries, Dictionary, Score, Scores}
 import com.util.FileIO
 import org.slf4j.LoggerFactory
-import slick.driver.PostgresDriver.api._
+import slick.jdbc.PostgresProfile.api._
 import slick.lifted.TableQuery
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
@@ -81,9 +81,9 @@ object MessageQueueActor {
     import GraphDSL.Implicits._
 
     val source = {
-      val javaList = SQSModule.getMessages
+      //      val javaList = SQSModule.getMessages
       //message source
-      val messages: Seq[Message] = javaList
+      val messages: Seq[Message] = SQSModule.getMessages.asScala
       Source(messages.toList)
     }
 
@@ -120,8 +120,8 @@ object MessageQueueActor {
     import GraphDSL.Implicits._
 
     val source = {
-      val javaList = SQSModule.getMessages
-      val messages: Seq[Message] = javaList
+      //      val javaList = SQSModule.getMessages
+      val messages: Seq[Message] = SQSModule.getMessages.asScala
       Source(messages.toList)
     }
 
@@ -178,47 +178,47 @@ object MessageQueueActor {
         }
       case Failure(fail) => log.error(fail.getMessage)
     }
-  }
 
-  private def __addScore(dictionaries: Seq[Dictionary], dictionaryId: Long, msg: Message, end: Long) = {
-    val dictionary = dictionaries(0)
-    val q = for {
-      s <- scoreTable if (s.dictionaryId === dictionary.id)
-    } yield s
-    val score: Future[Seq[Score]] = scoreDal.select(q)
-    score.onComplete {
-      case Success(s) => {
-        if (s.nonEmpty) {
-          val res = update(s, dictionary)
-          res.onComplete {
-            case Success(s) => restoreMessageIds(end, dictionaryId, msg)
-            case Failure(f) => log.error(f.getMessage)
-          }
-        } else {
-          val res: Future[Long] = insert(dictionary)
-          res.onComplete {
-            case Success(s) => restoreMessageIds(end, dictionaryId, msg)
-            case Failure(f) => log.error(f.getMessage)
+    def __addScore(dictionaries: Seq[Dictionary], dictionaryId: Long, msg: Message, end: Long) = {
+      val dictionary = dictionaries(0)
+      val q = for {
+        s <- scoreTable if (s.dictionaryId === dictionary.id)
+      } yield s
+      val score: Future[Seq[Score]] = scoreDal.select(q)
+      score.onComplete {
+        case Success(s) => {
+          if (s.nonEmpty) {
+            val res = update(s, dictionary)
+            res.onComplete {
+              case Success(s) => restoreMessageIds(end, dictionaryId, msg)
+              case Failure(f) => log.error(f.getMessage)
+            }
+          } else {
+            val res: Future[Long] = insert(dictionary)
+            res.onComplete {
+              case Success(s) => restoreMessageIds(end, dictionaryId, msg)
+              case Failure(f) => log.error(f.getMessage)
+            }
           }
         }
+        case Failure(f) => log.error("Fail to get a score")
       }
-      case Failure(f) => log.error("Fail to get a score")
-    }
 
-    def update(score: Seq[Score], dictionary: Dictionary) = {
-      log.info("UPDATE : " + score.toString)
-      val count = score.head.count match {
-        case Some(c) => c + 1
-        case None => 1
+      def update(score: Seq[Score], dictionary: Dictionary) = {
+        log.info("UPDATE : " + score.toString)
+        val count = score.head.count match {
+          case Some(c) => c + 1
+          case None => 1
+        }
+        scoreDal.update(Score(score.head.id, score.head.dictionaryId, Option(count), score.head.sqsId,
+          score.head.created, Option(new Timestamp(new Date().getTime()))))
       }
-      scoreDal.update(Score(score.head.id, score.head.dictionaryId, Option(count), score.head.sqsId,
-        score.head.created, Option(new Timestamp(new Date().getTime()))))
-    }
 
-    def insert(dictionary: Dictionary) = {
-      log.info("INSERT : " + dictionary.name)
-      val timestamp = new Timestamp(new Date().getTime())
-      scoreDal.insert(Score(0L, Option(dictionary.id), Option(1), dictionary.sqsId, Option(timestamp), Option(timestamp)))
+      def insert(dictionary: Dictionary) = {
+        log.info("INSERT : " + dictionary.name)
+        val timestamp = new Timestamp(new Date().getTime())
+        scoreDal.insert(Score(0L, Option(dictionary.id), Option(1), dictionary.sqsId, Option(timestamp), Option(timestamp)))
+      }
     }
   }
 

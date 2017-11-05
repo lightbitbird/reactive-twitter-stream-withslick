@@ -6,10 +6,11 @@ import com.modules.{ActorModuleImpl, ConfigurationModuleImpl, PersistenceModuleI
 import com.twitter.entities.{Dictionaries, Scores}
 import com.twitter.models.{Location, Marker, Word}
 import com.typesafe.config.ConfigFactory
-import slick.driver.H2Driver.api._
+import org.slf4j.LoggerFactory
+import slick.jdbc.PostgresProfile.api._
 import slick.lifted.TableQuery
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
 
@@ -22,10 +23,10 @@ trait WordsService {
   protected val dictionaryTable = TableQuery[Dictionaries]
   protected val scoreTable = TableQuery[Scores]
   protected val prefLocations: List[Location] = {
-    val list = locationsConf.getConfigList("locations.prefs")
+    val list = locationsConf.getConfigList("locations.prefs").asScala
     list.map { loc =>
       Location(loc.getString("id").toLong, loc.getString("name"), loc.getString("text"),
-        loc.getStringList("longitude").toList, loc.getStringList("latitude").toList, loc.getStringList("capital").toList)
+        loc.getStringList("longitude").asScala.toList, loc.getStringList("latitude").asScala.toList, loc.getStringList("capital").asScala.toList)
     }.toList
   }
 
@@ -41,6 +42,8 @@ trait WordsService {
 }
 
 trait WordsServiceImpl extends WordsService {
+  private val log = LoggerFactory.getLogger(this.getClass.getSimpleName)
+
   protected implicit val system = ActorSystem("system")
   protected implicit val materializer = ActorMaterializer()
   protected implicit val ec = system.dispatcher
@@ -61,7 +64,7 @@ trait WordsServiceImpl extends WordsService {
             case Some(p) if (list.last.placeId != p) =>
               val last = list.last
               val prefLocation = prefLocations.filter(x => (x.id == last.placeId)).head
-              val counter = countUp(list :+ Word(sWithIndex._1._1, sWithIndex._1._3.getOrElse(""), sWithIndex._1._4.getOrElse(0L), sWithIndex._1._5.getOrElse(""), sWithIndex._1._6.getOrElse(""), sWithIndex._1._7.getOrElse(0L)))
+              val counter = countUp(list)
               markerList += Marker(last.placeId, prefLocation.capital.head.toDouble, prefLocation.capital.last.toDouble, last.place, "", list, counter)
               val words = List(Word(sWithIndex._1._1, sWithIndex._1._3.getOrElse(""), sWithIndex._1._4.getOrElse(0L), sWithIndex._1._5.getOrElse(""), sWithIndex._1._6.getOrElse(""), sWithIndex._1._7.getOrElse(0L)))
               if (scores.last._4 == sWithIndex._1._4 && scores.last._2 == sWithIndex._1._2) {
@@ -72,8 +75,9 @@ trait WordsServiceImpl extends WordsService {
               words
             case Some(l) if (scores.last._4 == sWithIndex._1._4 && scores.last._2 == sWithIndex._1._2) =>
               val prefLocation = prefLocations.filter(x => (x.id == sWithIndex._1._4.head)).head
+              val words = list :+ Word(sWithIndex._1._1, sWithIndex._1._3.getOrElse(""), sWithIndex._1._4.getOrElse(0L), sWithIndex._1._5.getOrElse(""), sWithIndex._1._6.getOrElse(""), sWithIndex._1._7.getOrElse(0L))
               val counter = countUp(list :+ Word(sWithIndex._1._1, sWithIndex._1._3.getOrElse(""), sWithIndex._1._4.getOrElse(0L), sWithIndex._1._5.getOrElse(""), sWithIndex._1._6.getOrElse(""), sWithIndex._1._7.getOrElse(0L)))
-              markerList += Marker(sWithIndex._1._4.getOrElse(0L), prefLocation.capital.head.toDouble, prefLocation.capital.last.toDouble, sWithIndex._1._6.getOrElse(""), "", list, counter)
+              markerList += Marker(sWithIndex._1._4.getOrElse(0L), prefLocation.capital.head.toDouble, prefLocation.capital.last.toDouble, sWithIndex._1._6.getOrElse(""), "", words, counter)
               List(Word(sWithIndex._1._1, sWithIndex._1._3.getOrElse(""), sWithIndex._1._4.getOrElse(0L), sWithIndex._1._5.getOrElse(""), sWithIndex._1._6.getOrElse(""), sWithIndex._1._7.getOrElse(0L)))
             case Some(_) => list :+ Word(sWithIndex._1._1, sWithIndex._1._3.getOrElse(""), sWithIndex._1._4.getOrElse(0L), sWithIndex._1._5.getOrElse(""), sWithIndex._1._6.getOrElse(""), sWithIndex._1._7.getOrElse(0L))
             case None => list
@@ -110,7 +114,7 @@ trait WordsServiceImpl extends WordsService {
     }
   }
 
-  def extractWord(id: Long): Future[Either[String, Word]] = {
+  override def extractWord(id: Long): Future[Either[String, Word]] = {
     val w = (dictionaryTable join scoreTable on ((d, s) => d.id === s.dictionaryId)).filter(_._2.id === id).sortBy(_._1.placeId)
       .map {
         case (d, s) => (s.id, s.dictionaryId, d.name, d.placeId, d.country_code, d.place, s.count, d.country)

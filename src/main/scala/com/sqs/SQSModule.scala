@@ -27,8 +27,8 @@ trait Module {
 
   def deleteMessage(message: Message) = {
     val receiptHandle = message.getReceiptHandle
-    //キュー削除
-    log.info("Deleting the test queue.\n")
+
+    log.info("Deleting the queue.")
     sqs.deleteMessage(queueUrl, receiptHandle)
   }
 }
@@ -40,7 +40,6 @@ trait BaseSQS extends Module {
   protected def sqsClient: AmazonSQSClient
 
   protected def createQueueUrl: String = {
-    //キューを作成
     sqs.createQueue(new CreateQueueRequest("MyQueue")).getQueueUrl()
   }
 }
@@ -51,7 +50,6 @@ trait BaseSQSAsync extends BaseSQS {
   protected override def sqsClient: AmazonSQSAsyncClient
 
   protected override def createQueueUrl: String = {
-    //キューを作成
     sqs.createQueue(new CreateQueueRequest("MyQueue")).getQueueUrl()
   }
 }

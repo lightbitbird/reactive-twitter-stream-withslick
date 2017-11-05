@@ -9,7 +9,6 @@ import akka.stream.scaladsl.{Flow, Framing}
 import akka.stream.{ActorAttributes, ActorMaterializer, Supervision}
 import akka.util.ByteString
 import com.hunorkovacs.koauth.domain.KoauthRequest
-import com.hunorkovacs.koauth.service.consumer.DefaultConsumerService
 import com.modules.{ActorModuleImpl, ConfigurationModuleImpl, PersistenceModuleImpl}
 import com.twitter.models.{Country, Location, Tweet}
 import com.typesafe.config.ConfigFactory
@@ -17,8 +16,7 @@ import net.reduls.igo.Tagger
 import org.json4s._
 import org.json4s.native.JsonMethods._
 
-import scala.collection.JavaConversions._
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.collection.JavaConverters._
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
@@ -38,22 +36,24 @@ object StreamingWordsOfKey extends App {
   implicit val system = ActorSystem()
   implicit val materializer = ActorMaterializer()
   implicit val formats = DefaultFormats
-  //	implicit val ec= system.dispatcher
+  implicit val ec= system.dispatcher
+  import com.hunorkovacs.koauth.service.consumer.DefaultConsumerService._
 
-  private val consumer = new DefaultConsumerService(system.dispatcher)
   val serial = SerializationExtension(system).findSerializerFor(Tweet)
   modules.dictionaryDal.createTable()
   modules.scoreDal.createTable()
 
   val prefs: List[Location] = {
-    val list = locationsConf.getConfigList("locations.prefs")
+    val list = locationsConf.getConfigList("locations.prefs").asScala
     list.map { loc =>
-      Location(loc.getString("id").toLong, loc.getString("name"), loc.getString("text"), loc.getStringList("longitude").toList, loc.getStringList("latitude").toList, loc.getStringList("capital").toList)
+      Location(loc.getString("id").toLong, loc.getString("name"), loc.getString("text"),
+        loc.getStringList("longitude").asScala.toList, loc.getStringList("latitude").asScala.toList,
+        loc.getStringList("capital").asScala.toList)
     }.toList
   }
 
   val countries: List[Country] = {
-    val countries = locationsConf.getConfigList("locations.countries")
+    val countries = locationsConf.getConfigList("locations.countries").asScala
     countries.map { ctry =>
       Country(ctry.getString("country_code"), ctry.getString("country"))
     }.toList
@@ -71,14 +71,14 @@ object StreamingWordsOfKey extends App {
   val enableName = List("名詞", "動名詞")
 
   //Create Oauth 1a header
-  val oauthHeader: Future[String] = consumer.createOauthenticatedRequest(
+  val oauthHeader: Future[String] = Future.successful(createOauthenticatedRequest(
     KoauthRequest(
       method = "POST",
       url = url,
       authorizationHeader = None,
       body = Some(body)
     ), consumerKey, consumerSecret, accessToken, accessTokenSecret
-  ) map (_.header)
+  ).header)
 
   oauthHeader.onComplete {
     case Success(header) =>

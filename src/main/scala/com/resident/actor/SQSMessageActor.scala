@@ -10,7 +10,7 @@ import com.modules.{ActorModuleImpl, ConfigurationModuleImpl, PersistenceModuleI
 import com.sqs.SQSModule
 import com.twitter.entities.{Dictionaries, Dictionary}
 import org.slf4j.LoggerFactory
-import slick.driver.PostgresDriver.api._
+import slick.jdbc.PostgresProfile.api._
 import slick.lifted.TableQuery
 
 import scala.collection.mutable.ListBuffer

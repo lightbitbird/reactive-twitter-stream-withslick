@@ -12,7 +12,6 @@ import akka.stream.scaladsl.{Flow, Framing, Sink}
 import akka.stream.{ActorAttributes, ActorMaterializer, Supervision}
 import akka.util.ByteString
 import com.hunorkovacs.koauth.domain.KoauthRequest
-import com.hunorkovacs.koauth.service.consumer.DefaultConsumerService
 import com.igo.Word
 import com.modules.{ActorModuleImpl, ConfigurationModuleImpl, PersistenceModuleImpl}
 import com.twitter.entities.Dictionary
@@ -23,7 +22,7 @@ import org.json4s._
 import org.json4s.native.JsonMethods._
 import org.slf4j.LoggerFactory
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
@@ -60,23 +59,24 @@ object StreamingActor {
   implicit val ec = system.dispatcher
 
   def props = Props[StreamingActor]
+  import com.hunorkovacs.koauth.service.consumer.DefaultConsumerService._
 
-  private val consumer = new DefaultConsumerService(system.dispatcher)
+//  private val consumer = new DefaultConsumerService(ec)
   val serial = SerializationExtension(system).findSerializerFor(Tweet)
   implicit val formats = DefaultFormats
   modules.dictionaryDal.createTable()
   modules.scoreDal.createTable()
 
   val prefs: List[Location] = {
-    val list = locationsConf.getConfigList("locations.prefs")
+    val list = locationsConf.getConfigList("locations.prefs").asScala
     list.map { loc =>
       Location(loc.getString("id").toLong, loc.getString("name"), loc.getString("text"),
-        loc.getStringList("longitude").toList, loc.getStringList("latitude").toList, loc.getStringList("capital").toList)
+        loc.getStringList("longitude").asScala.toList, loc.getStringList("latitude").asScala.toList, loc.getStringList("capital").asScala.toList)
     }.toList
   }
 
   val countries: List[Country] = {
-    val countries = locationsConf.getConfigList("locations.countries")
+    val countries = locationsConf.getConfigList("locations.countries").asScala
     countries.map { ctry =>
       Country(ctry.getString("country_code"), ctry.getString("country"))
     }.toList
@@ -100,14 +100,14 @@ object StreamingActor {
     val body = "locations=" + locations
     val uri_source = Uri(url)
 
-    val oauthHeader: Future[String] = consumer.createOauthenticatedRequest(
+    val oauthHeader: Future[String] = Future.successful(createOauthenticatedRequest(
       KoauthRequest(
         method = "POST",
         url = url,
         authorizationHeader = None,
         body = Some(body)
       ), consumerKey, consumerSecret, accessToken, accessTokenSecret
-    ) map (_.header)
+    ).header)
 
     val chunkBuffer = Framing.delimiter(ByteString("\r\n"), 25001, false)
       .map(_.utf8String)

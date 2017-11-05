@@ -2,8 +2,8 @@ package com.persistence.dal
 
 import com.modules.{DbModule, Profile}
 import com.persistence.entities.{BaseEntity, BaseTable}
-import slick.driver.H2Driver.api._
-import slick.driver.JdbcProfile
+import slick.jdbc.H2Profile.api._
+import slick.jdbc.JdbcProfile
 import slick.lifted.{CanBeQueryCondition, TableQuery}
 
 import scala.concurrent.ExecutionContext.Implicits.global
