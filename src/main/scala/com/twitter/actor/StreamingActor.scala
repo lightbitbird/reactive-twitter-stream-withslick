@@ -170,9 +170,7 @@ object StreamingActor {
     }
 
     def calc(tw: Tweet): Future[List[Option[Word]]] = {
-      import scala.collection.JavaConversions._
-
-      val parsedList = Word.combine(tagger.parse(tw.text).map(m => Word(m.surface, m.feature)))
+      val parsedList = Word.combine(tagger.parse(tw.text).asScala.toList map(m => Word(m.surface, m.feature)))
       val sentences = Word.splitBySymbol(parsedList.filter(_.subType != "代名詞"))
       Future.successful(sentences.filter(word => word match {
         case Some(w) if (enableName.contains(w.wordType) && w.subType != "非自立") =>

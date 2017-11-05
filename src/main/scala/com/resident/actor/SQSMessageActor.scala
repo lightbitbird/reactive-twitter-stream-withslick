@@ -39,30 +39,26 @@ object SQSMessageActor {
   def props = Props[SQSMessageActor]
 
   def sendMessage(): Unit = {
-    try {
-      val table = TableQuery[Dictionaries]
-      val result: Future[Seq[Dictionary]] = dictionaryDal.findByFilter(table.filter(_.sqsId === "").sortBy(_.id))
-      result onComplete {
-        case Success(r) => {
-          if (r.nonEmpty) {
-            val headId = r.head.id
-            val tailId = r.last.id
-            val msgResult: SendMessageResult = SQSModule.sendMessage(headId + "," + tailId)
-            log.info("SEND Message: messageID = " + msgResult.getMessageId)
+    val table = TableQuery[Dictionaries]
+    val result: Future[Seq[Dictionary]] = dictionaryDal.findByFilter(table.filter(_.sqsId === "").sortBy(_.id))
+    result onComplete {
+      case Success(r) => {
+        if (r.nonEmpty) {
+          val headId = r.head.id
+          val tailId = r.last.id
+          val msgResult: SendMessageResult = SQSModule.sendMessage(headId + "," + tailId)
+          log.info("SEND Message: messageID = " + msgResult.getMessageId)
 
-            // add SQS messageId to the each data
-            val dictionaries = r.foldLeft(List[Dictionary]()) {
-              (ls, d) =>
-                ls :+ Dictionary(d.id, d.name, d.text, d.lang, d.country_code, d.country, d.placeId, d.place,
-                  Option(msgResult.getMessageId), d.created, Option(new Timestamp(new Date().getTime())))
-            }
-            dictionaryDal.update(dictionaries)
+          // add SQS messageId to the each data
+          val dictionaries = r.foldLeft(List[Dictionary]()) {
+            (ls, d) =>
+              ls :+ Dictionary(d.id, d.name, d.text, d.lang, d.country_code, d.country, d.placeId, d.place,
+                Option(msgResult.getMessageId), d.created, Option(new Timestamp(new Date().getTime())))
           }
+          dictionaryDal.update(dictionaries)
         }
-        case Failure(f) => log.error(f.getMessage)
       }
-    } catch {
-      case e: Exception => log.error("Error occured: " + e.getMessage)
+      case Failure(f) => log.error(f.getMessage)
     }
   }
 }
