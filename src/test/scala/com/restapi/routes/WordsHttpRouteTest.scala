@@ -1,8 +1,6 @@
 package com.restapi.routes
 
-import akka.actor.ActorSystem
 import akka.http.scaladsl.testkit.ScalatestRouteTest
-import akka.stream.ActorMaterializer
 import org.scalatest.{Matchers, WordSpec}
 
 class WordsHttpRouteTest extends WordSpec with Matchers with ScalatestRouteTest {
