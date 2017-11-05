@@ -1,17 +1,15 @@
 package com.restapi.services
 
-import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
 import com.modules.{ActorModuleImpl, ConfigurationModuleImpl, PersistenceModuleImpl}
 import com.twitter.entities.{Dictionaries, Scores}
 import com.twitter.models.{Location, Marker, Word}
 import com.typesafe.config.ConfigFactory
-import org.slf4j.LoggerFactory
 import slick.jdbc.PostgresProfile.api._
 import slick.lifted.TableQuery
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 trait WordsService {
@@ -42,11 +40,6 @@ trait WordsService {
 }
 
 trait WordsServiceImpl extends WordsService {
-  private val log = LoggerFactory.getLogger(this.getClass.getSimpleName)
-
-  protected implicit val system = ActorSystem("system")
-  protected implicit val materializer = ActorMaterializer()
-  protected implicit val ec = system.dispatcher
 
   override def extractTotalWords: Future[Either[String, List[Marker]]] = {
     val w = (dictionaryTable join scoreTable on ((d, s) => d.id === s.dictionaryId)).sortBy(_._1.placeId)

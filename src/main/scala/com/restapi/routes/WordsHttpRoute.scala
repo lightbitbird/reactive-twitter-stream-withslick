@@ -1,7 +1,5 @@
 package com.restapi.routes
 
-import akka.event.Logging
-import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshalling.ToResponseMarshallable
 import akka.http.scaladsl.server.Directives
 import ch.megard.akka.http.cors.CorsDirectives._
@@ -9,16 +7,10 @@ import com.restapi.JsonSupport
 import com.restapi.services.WordsServiceImpl
 import com.twitter.models.Word
 
-import scala.util.Failure
-
-object WordsHttpRoute extends WordsServiceImpl with Directives with JsonSupport {
-  private val logger = Logging(system, getClass)
+class WordsHttpRoute() extends WordsServiceImpl with Directives with JsonSupport {
 
   // marshaller for the case class Word
   implicit val itemFormat = jsonFormat6(Word)
-
-  val interface = "localhost"
-  val port = 8080
 
   val route = cors()({
     pathSingleSlash {
@@ -75,14 +67,6 @@ object WordsHttpRoute extends WordsServiceImpl with Directives with JsonSupport 
       }
     }
   })
-
-  def startApplication = {
-    val binding = Http().bindAndHandle(WordsHttpRoute.route, interface, port)
-    binding.onComplete {
-      case scala.util.Success(s) => logger.info("Success")
-      case Failure(f) => logger.error(f, s"Failed to bind to $interface $port")
-    }
-  }
 
 }
 
