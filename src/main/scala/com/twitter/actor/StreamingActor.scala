@@ -61,7 +61,6 @@ object StreamingActor {
   def props = Props[StreamingActor]
   import com.hunorkovacs.koauth.service.consumer.DefaultConsumerService._
 
-//  private val consumer = new DefaultConsumerService(ec)
   val serial = SerializationExtension(system).findSerializerFor(Tweet)
   implicit val formats = DefaultFormats
   modules.dictionaryDal.createTable()
