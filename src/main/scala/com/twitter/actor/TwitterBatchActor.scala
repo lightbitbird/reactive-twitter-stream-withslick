@@ -25,7 +25,7 @@ class TwitterBatchActor extends Actor {
       val streamActor = system.actorOf(StreamingActor.props, actorName)
       context.watch(streamActor)
       //Choose a direct prefecture number
-      streamActor ! 20
+      streamActor ! 17
 
     // It might ourre 420 status error
     // system.scheduler.schedule(delay, interval, streamActor, 18)

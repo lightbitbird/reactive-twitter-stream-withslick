@@ -81,7 +81,6 @@ object MessageQueueActor {
     import GraphDSL.Implicits._
 
     val source = {
-      //      val javaList = SQSModule.getMessages
       //message source
       val messages: Seq[Message] = SQSModule.getMessages.asScala
       Source(messages.toList)
@@ -120,7 +119,6 @@ object MessageQueueActor {
     import GraphDSL.Implicits._
 
     val source = {
-      //      val javaList = SQSModule.getMessages
       val messages: Seq[Message] = SQSModule.getMessages.asScala
       Source(messages.toList)
     }

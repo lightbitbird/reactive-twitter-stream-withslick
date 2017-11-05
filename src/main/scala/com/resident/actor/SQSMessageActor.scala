@@ -42,7 +42,6 @@ object SQSMessageActor {
     try {
       val table = TableQuery[Dictionaries]
       val result: Future[Seq[Dictionary]] = dictionaryDal.findByFilter(table.filter(_.sqsId === "").sortBy(_.id))
-      val dictionaries = ListBuffer[Dictionary]()
       result onComplete {
         case Success(r) => {
           if (r.nonEmpty) {
@@ -50,12 +49,13 @@ object SQSMessageActor {
             val tailId = r.last.id
             val msgResult: SendMessageResult = SQSModule.sendMessage(headId + "," + tailId)
             log.info("SEND Message: messageID = " + msgResult.getMessageId)
-            // add SQS messageId to the each data
-            r.foreach { x =>
-              dictionaries += Dictionary(x.id, x.name, x.text, x.lang, x.country_code, x.country, x.placeId, x.place, Option(msgResult.getMessageId),
-                x.created, Option(new Timestamp(new Date().getTime())))
-            }
 
+            // add SQS messageId to the each data
+            val dictionaries = r.foldLeft(List[Dictionary]()) {
+              (ls, d) =>
+                ls :+ Dictionary(d.id, d.name, d.text, d.lang, d.country_code, d.country, d.placeId, d.place,
+                  Option(msgResult.getMessageId), d.created, Option(new Timestamp(new Date().getTime())))
+            }
             dictionaryDal.update(dictionaries)
           }
         }
